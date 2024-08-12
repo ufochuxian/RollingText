@@ -2,10 +2,15 @@ package com.yy.mobile.rollingtext;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
+import android.animation.TypeEvaluator;
+import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
+import android.graphics.PointF;
 import android.os.Bundle;
 import android.os.Handler;
+import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
+import android.widget.TextView;
 
 import com.yy.mobile.rollingtextview.CharOrder;
 import com.yy.mobile.rollingtextview.RollingTextView;
@@ -21,6 +26,7 @@ import org.jetbrains.annotations.Nullable;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
@@ -127,6 +133,7 @@ public class MainActivity extends AppCompatActivity {
         });
         alphaBetView.setText("i am a text");
 
+        Calendar calendar = Calendar.getInstance();
 
         final RollingTextView timeView = findViewById(R.id.timeView);
         timeView.setAnimationDuration(300);
@@ -135,9 +142,15 @@ public class MainActivity extends AppCompatActivity {
         handler.post(new Runnable() {
             @Override
             public void run() {
-                timeView.setText(format.format(new Date()));
-                handler.postDelayed(this, 1000L);
+                calendar.add(Calendar.MINUTE, 20);
+                calendar.add(Calendar.SECOND,30);
+                timeView.setText(format.format(calendar.getTime()));
+//                handler.postDelayed(this, 1000L);
             }
+        });
+
+        timeView.setOnClickListener(v -> {
+            animateView(findViewById(R.id.add_time), timeView);
         });
 
         final RollingTextView carryView = findViewById(R.id.carryTextView);
@@ -204,5 +217,54 @@ public class MainActivity extends AppCompatActivity {
                 handler.postDelayed(this, 1000L);
             }
         }.run();
+    }
+
+    private void animateView(final TextView timeView, RollingTextView viewB) {
+        int[] locationA = new int[2];
+        int[] locationB = new int[2];
+
+        timeView.getLocationOnScreen(locationA);
+        viewB.getLocationOnScreen(locationB);
+
+        PointF start = new PointF(locationA[0], locationA[1]);
+        PointF end = new PointF(locationB[0], locationB[1]);
+
+        ValueAnimator animator = ValueAnimator.ofObject(new BezierEvaluator(), start, end);
+        animator.setDuration(2000);
+        animator.addUpdateListener(animation -> {
+            PointF point = (PointF) animation.getAnimatedValue();
+            timeView.setX(point.x);
+            timeView.setY(point.y);
+        });
+        @SuppressLint("SimpleDateFormat") final DateFormat format = new SimpleDateFormat("HH:mm:ss");
+        animator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                super.onAnimationEnd(animation);
+                Calendar calendar = Calendar.getInstance();
+                calendar.add(Calendar.MINUTE, 20);
+                viewB.setText(format.format(calendar.getTime()));
+            }
+        });
+
+        animator.start();
+    }
+
+
+
+}
+
+class BezierEvaluator implements TypeEvaluator<PointF> {
+    @Override
+    public PointF evaluate(float fraction, PointF startValue, PointF endValue) {
+        float x = (1 - fraction) * (1 - fraction) * startValue.x +
+                2 * fraction * (1 - fraction) * ((startValue.x + endValue.x) / 2) +
+                fraction * fraction * endValue.x;
+
+        float y = (1 - fraction) * (1 - fraction) * startValue.y +
+                2 * fraction * (1 - fraction) * (startValue.y - 300) +
+                fraction * fraction * endValue.y;
+
+        return new PointF(x, y);
     }
 }
